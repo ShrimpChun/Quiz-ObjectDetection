@@ -9,6 +9,7 @@ import UIKit
 import RxSwift
 import RxCocoa
 import Combine
+import SnapKit
 import PhotosUI
 import Vision
 import CoreGraphics
@@ -34,13 +35,20 @@ class MainViewController: UIViewController {
     // MARK: - Private property
     private var videoURL: URL? {
         didSet {
-            DispatchQueue.global(qos: .background).async {
-                self.extractVideoFrame()
-                DispatchQueue.main.async {
-                    
-                }
-            }
+            extractVideoFrame()
+
+//            DispatchQueue.global(qos: .background).async {
+//                self.extractVideoFrame()
+//                DispatchQueue.main.async {
+//
+//                }
+//            }
         }
+    }
+    
+    private let messageLabel = UILabel() --> {
+        $0.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        $0.textColor = .black
     }
         
     lazy var visionModel: VNCoreMLModel = {
@@ -65,10 +73,15 @@ class MainViewController: UIViewController {
     private var picker: PHPickerViewController?
     
     private var coreMLModel = MobileNetV2_SSDLite()
+        
+    private enum CaptureState {
+        case idle, start, capturing, end
+    }
     
+    // MARK: - AVAsset resources
     private var currentBuffer: CVPixelBuffer?
-    
-    private let maxBoundingBoxViews = 10
+    private var captureState: CaptureState = .idle
+    private let maxBoundingBoxViews = 20
     private var boundingBoxViews = [BoundingBoxView]()
     private var assetWriter: AVAssetWriter?
     private var assetWriterInput: AVAssetWriterInput?
@@ -77,11 +90,11 @@ class MainViewController: UIViewController {
     private var timestamp: Double = 0
     private var currentTimestamp: Double = 0
     
-    private enum CaptureState {
-        case idle, start, capturing, end
-    }
+    private var durationInSeconds: Float64 = 0
     
-    private var captureState: CaptureState = .idle
+    private var frameWidth: CGFloat = 0
+    private var frameHeight: CGFloat = 0
+
 }
 
 // MARK: - UI congigure
@@ -91,6 +104,7 @@ private extension MainViewController {
         title = "Object Detection"
         view.backgroundColor = .white
         configNavigationItem()
+        configMessageLabel()
     }
     
     func configNavigationItem() {
@@ -102,6 +116,18 @@ private extension MainViewController {
                 self?.openVideoGallery()
             }
         )
+        
+    }
+    
+    func configMessageLabel() {
+        
+        view.addSubview(messageLabel)
+        
+        messageLabel.text = "Please select a video file."
+        
+        messageLabel.snp.makeConstraints {
+            $0.top.centerX.leading.equalToSuperview()
+        }
         
     }
 }
@@ -158,28 +184,36 @@ private extension MainViewController {
         let asset = AVAsset(url: url)
         let reader = try! AVAssetReader(asset: asset)
 
+        // Keep asset duration
+        durationInSeconds = CMTimeGetSeconds(asset.duration);
+        
         let videoTrack = asset.tracks(withMediaType: .video).first!
 
+        let _ = videoTrack.preferredTransform
+                
         let trackReaderOutput = AVAssetReaderTrackOutput(track: videoTrack,
                                                          outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: NSNumber(value: kCVPixelFormatType_32BGRA)])
         trackReaderOutput.alwaysCopiesSampleData = false
                 
         reader.add(trackReaderOutput)
         reader.startReading()
+        
+        captureState = .start
 
         while let sampleBuffer = trackReaderOutput.copyNextSampleBuffer() {
             predict(sampleBuffer: sampleBuffer)
         }
         
         if reader.status == .completed {
-            print("Yes")
+            captureState = .end
+            saveVideoCapturing(nil)
         }
                         
     }
     
     func predict(sampleBuffer: CMSampleBuffer) {
         
-        print("Sample at time : \(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))")
+        print("Sample at time : \(CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds)")
         timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
         
         if currentBuffer == nil, let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
@@ -216,52 +250,55 @@ private extension MainViewController {
         
         let baseAddress = CVPixelBufferGetBaseAddressOfPlane(currentBuffer, 0)
         let bytesPerRow = CVPixelBufferGetBytesPerRow(currentBuffer)
-        let width = CVPixelBufferGetWidth(currentBuffer)
-        let height = CVPixelBufferGetHeight(currentBuffer)
-        
+        frameWidth = CGFloat(CVPixelBufferGetWidth(currentBuffer))
+        frameHeight = CGFloat(CVPixelBufferGetHeight(currentBuffer))
+                
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         
-        let newContext = CGContext(data: baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: bytesPerRow, space: colorSpace, bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue | CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).rawValue)
-                
+        let newContext = CGContext(data: baseAddress, width: Int(frameWidth), height: Int(frameHeight), bitsPerComponent: 8, bytesPerRow: bytesPerRow, space: colorSpace, bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue | CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).rawValue)
+        
+        let scale = CGAffineTransform.identity.scaledBy(x: frameWidth, y: frameHeight)
+        let transform = CGAffineTransform(scaleX: 1, y: -1).translatedBy(x: 0, y: -frameHeight)
+        
+        let parentLayer = CALayer()
+        parentLayer.frame = CGRect(x: 0, y: 0, width: frameWidth, height: frameHeight)
+        
         for prediction in predictions {
             
-            let scale = CGAffineTransform.identity.scaledBy(x: CGFloat(width), y: CGFloat(height))
-            let transform = CGAffineTransform(scaleX: 1, y: -1).translatedBy(x: 0, y: -CGFloat(height))
             let layerRect = prediction.boundingBox.applying(scale).applying(transform)
-            let parentLayer = CALayer()
-            parentLayer.frame = CGRect(x: 0, y: 0, width: width, height: height)
-            let a = BoundingBoxView()
-            a.show(frame: layerRect, label: prediction.labels[0].identifier, color: UIColor.yellow)
-            a.addToLayer(parentLayer)
+            let boxView = BoundingBoxView()
+            boxView.show(frame: layerRect, label: prediction.labels[0].identifier, color: UIColor.yellow)
+            boxView.addToLayer(parentLayer)
             
-            UIGraphicsBeginImageContextWithOptions(parentLayer.frame.size, parentLayer.isOpaque, 0)
-            parentLayer.render(in: UIGraphicsGetCurrentContext()!)
-            let outputImage = UIGraphicsGetImageFromCurrentImageContext()
-            UIGraphicsEndImageContext()
-            
-            let sourceImage = CIImage(image: outputImage!)
-            let resizeFilter = CIFilter(name:"CILanczosScaleTransform")!
-
-            let targetSize = CGSize(width: width, height: height)
-
-            let imageScale = targetSize.height / (sourceImage?.extent.height)!
-            let aspectRatio = targetSize.width/((sourceImage?.extent.width)! * imageScale)
-            
-            resizeFilter.setValue(sourceImage, forKey: kCIInputImageKey)
-            resizeFilter.setValue(imageScale, forKey: kCIInputScaleKey)
-            resizeFilter.setValue(aspectRatio, forKey: kCIInputAspectRatioKey)
-
-            let ctx = CIContext(options: nil)
-            let outputCGImage = ctx.createCGImage(resizeFilter.outputImage!, from: resizeFilter.outputImage!.extent)!
-            newContext?.draw(outputCGImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-            
-            guard let cgImage = newContext?.makeImage() else { return }
-            
-            saveVideoCapturing(cgImage)
         }
+        
+        UIGraphicsBeginImageContextWithOptions(parentLayer.frame.size, parentLayer.isOpaque, 0)
+        parentLayer.render(in: UIGraphicsGetCurrentContext()!)
+        let outputImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        let sourceImage = CIImage(image: outputImage!)
+        let resizeFilter = CIFilter(name:"CILanczosScaleTransform")!
+
+        let targetSize = CGSize(width: frameWidth, height: frameHeight)
+
+        let imageScale = targetSize.height / (sourceImage?.extent.height)!
+        let aspectRatio = targetSize.width/((sourceImage?.extent.width)! * imageScale)
+        
+        resizeFilter.setValue(sourceImage, forKey: kCIInputImageKey)
+        resizeFilter.setValue(imageScale, forKey: kCIInputScaleKey)
+        resizeFilter.setValue(aspectRatio, forKey: kCIInputAspectRatioKey)
+
+        let ctx = CIContext(options: nil)
+        let outputCGImage = ctx.createCGImage(resizeFilter.outputImage!, from: resizeFilter.outputImage!.extent)!
+        newContext?.draw(outputCGImage, in: CGRect(x: 0, y: 0, width: frameWidth, height: frameHeight))
+        
+        guard let cgImage = newContext?.makeImage() else { return }
+        
+        saveVideoCapturing(cgImage)
     }
     
-    func saveVideoCapturing(_ cgImage: CGImage) {
+    func saveVideoCapturing(_ cgImage: CGImage?) {
         
         switch captureState {
         case .start:
@@ -270,7 +307,7 @@ private extension MainViewController {
             let videoURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(fileName).mp4")
             let writer = try! AVAssetWriter(outputURL: videoURL, fileType: AVFileType.mp4)
                         
-            let input = AVAssetWriterInput(mediaType: .video, outputSettings: nil)
+            let input = AVAssetWriterInput(mediaType: .video, outputSettings: [AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: 1920, AVVideoHeightKey: 1080])
             
             input.mediaTimeScale = CMTimeScale(bitPattern: 600)
             input.expectsMediaDataInRealTime = false
@@ -281,8 +318,9 @@ private extension MainViewController {
                 kCVPixelBufferPixelFormatTypeKey as String: NSNumber(value: kCVPixelFormatType_32BGRA)
             ]
             
-            let inputPixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: pixelBufferAttributes)
-            
+            let inputPixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input,
+                                                                               sourcePixelBufferAttributes: pixelBufferAttributes)
+                        
             if writer.canAdd(input) {
                 writer.add(input)
             }
@@ -300,10 +338,23 @@ private extension MainViewController {
             print("錄製中")
             if assetWriterInput?.isReadyForMoreMediaData == true {
                 let time = CMTime(seconds: timestamp - currentTimestamp, preferredTimescale: CMTimeScale(600))
-                pixelBufferAdaptor?.append(newPixelBufferFrom(cgImage: cgImage)!, withPresentationTime: time)
+                pixelBufferAdaptor?.append(newPixelBufferFrom(cgImage: cgImage!)!, withPresentationTime: time)
             }
         case .end:
             print("結束")
+            guard assetWriterInput?.isReadyForMoreMediaData == true, assetWriter!.status != .failed else { break }
+            let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(fileName).mp4")
+            assetWriterInput?.markAsFinished()
+            assetWriter?.finishWriting {
+                [weak self] in
+                self?.captureState = .idle
+                self?.assetWriter = nil
+                self?.assetWriterInput = nil
+                DispatchQueue.main.async {
+                    self?.saveToLibrary(url: url)
+                    print("Finish")
+                }
+            }
         default:
             break
         }
@@ -350,7 +401,9 @@ private extension MainViewController {
                 PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
             } completionHandler: { success, error in
                 if !success {
-                    print("Couldn't save video to photo library: \(error?.localizedDescription)")
+                    if let error = error {
+                        print("Couldn't save video to photo library: \(error.localizedDescription)")
+                    }
                 }
             }
         }
