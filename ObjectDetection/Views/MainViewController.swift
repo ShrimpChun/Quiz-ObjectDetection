@@ -11,6 +11,7 @@ import RxCocoa
 import Combine
 import PhotosUI
 import Vision
+import CoreGraphics
 
 class MainViewController: UIViewController {
     
@@ -21,6 +22,7 @@ class MainViewController: UIViewController {
         super.viewDidLoad()
         
         setupUI()
+        setUpBoundingBoxViews()
         
         guard let viewModel = viewModel else {
             return
@@ -32,8 +34,11 @@ class MainViewController: UIViewController {
     // MARK: - Private property
     private var videoURL: URL? {
         didSet {
-            DispatchQueue.main.async {
+            DispatchQueue.global(qos: .background).async {
                 self.extractVideoFrame()
+                DispatchQueue.main.async {
+                    
+                }
             }
         }
     }
@@ -61,11 +66,22 @@ class MainViewController: UIViewController {
     
     private var coreMLModel = MobileNetV2_SSDLite()
     
+    private var currentBuffer: CVPixelBuffer?
+    
     private let maxBoundingBoxViews = 10
     private var boundingBoxViews = [BoundingBoxView]()
+    private var assetWriter: AVAssetWriter?
+    private var assetWriterInput: AVAssetWriterInput?
+    private var pixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
+    private var fileName: String = ""
+    private var timestamp: Double = 0
+    private var currentTimestamp: Double = 0
     
-    private var debugImageView: UIImageView!
+    private enum CaptureState {
+        case idle, start, capturing, end
+    }
     
+    private var captureState: CaptureState = .idle
 }
 
 // MARK: - UI congigure
@@ -75,17 +91,6 @@ private extension MainViewController {
         title = "Object Detection"
         view.backgroundColor = .white
         configNavigationItem()
-        
-        debugImageView = UIImageView()
-        debugImageView.backgroundColor = .clear
-        view.addSubview(debugImageView)
-        view.bringSubviewToFront(debugImageView)
-        debugImageView.translatesAutoresizingMaskIntoConstraints = false
-        debugImageView.widthAnchor.constraint(equalToConstant: 200).isActive = true
-        debugImageView.heightAnchor.constraint(equalTo: debugImageView.widthAnchor).isActive = true
-        debugImageView.leadingAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.leadingAnchor).isActive = true
-        debugImageView.bottomAnchor.constraint(equalTo: self.view.layoutMarginsGuide.bottomAnchor).isActive = true
-
     }
     
     func configNavigationItem() {
@@ -123,6 +128,12 @@ private extension MainViewController {
 
 private extension MainViewController {
     
+    func setUpBoundingBoxViews() {
+        for _ in 0..<maxBoundingBoxViews {
+            boundingBoxViews.append(BoundingBoxView())
+        }
+    }
+    
     func openVideoGallery() {
         
         var config = PHPickerConfiguration()
@@ -152,22 +163,12 @@ private extension MainViewController {
         let trackReaderOutput = AVAssetReaderTrackOutput(track: videoTrack,
                                                          outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: NSNumber(value: kCVPixelFormatType_32BGRA)])
         trackReaderOutput.alwaysCopiesSampleData = false
-        
+                
         reader.add(trackReaderOutput)
         reader.startReading()
 
         while let sampleBuffer = trackReaderOutput.copyNextSampleBuffer() {
-            print("---> sample at time : \(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))")
-
-            if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-                // Process each CVPixelBufferRef here
-                let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
-                do {
-                    try handler.perform([self.visionRequest])
-                } catch {
-                    assertionFailure("Failed to perform Vision request: \(error)")
-                }
-            }
+            predict(sampleBuffer: sampleBuffer)
         }
         
         if reader.status == .completed {
@@ -176,24 +177,185 @@ private extension MainViewController {
                         
     }
     
+    func predict(sampleBuffer: CMSampleBuffer) {
+        
+        print("Sample at time : \(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))")
+        timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
+        
+        if currentBuffer == nil, let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+            
+            currentBuffer = pixelBuffer
+            CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+            
+            // Process each CVPixelBufferRef here
+            let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
+            do {
+                try handler.perform([self.visionRequest])
+            } catch {
+                assertionFailure("Failed to perform Vision request: \(error)")
+            }
+            
+            CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly)
+            
+            currentBuffer = nil
+        }
+        
+    }
+    
     func processObservations(for request: VNRequest, error: Error?) {
         if let results = request.results as? [VNRecognizedObjectObservation] {
-          self.show(predictions: results)
+          self.draw(predictions: results)
         } else {
-          self.show(predictions: [])
+          self.draw(predictions: [])
         }
     }
     
-    func show(predictions: [VNRecognizedObjectObservation]) {
+    func draw(predictions: [VNRecognizedObjectObservation]) {
         
+        guard let currentBuffer = currentBuffer else { return }
+        
+        let baseAddress = CVPixelBufferGetBaseAddressOfPlane(currentBuffer, 0)
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(currentBuffer)
+        let width = CVPixelBufferGetWidth(currentBuffer)
+        let height = CVPixelBufferGetHeight(currentBuffer)
+        
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        
+        let newContext = CGContext(data: baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: bytesPerRow, space: colorSpace, bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue | CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).rawValue)
+                
         for prediction in predictions {
-            let person = prediction.labels.filter { $0.identifier == "person" }
-            if person.count > 0 {
-                print(person[0].confidence)
+            
+            let scale = CGAffineTransform.identity.scaledBy(x: CGFloat(width), y: CGFloat(height))
+            let transform = CGAffineTransform(scaleX: 1, y: -1).translatedBy(x: 0, y: -CGFloat(height))
+            let layerRect = prediction.boundingBox.applying(scale).applying(transform)
+            let parentLayer = CALayer()
+            parentLayer.frame = CGRect(x: 0, y: 0, width: width, height: height)
+            let a = BoundingBoxView()
+            a.show(frame: layerRect, label: prediction.labels[0].identifier, color: UIColor.yellow)
+            a.addToLayer(parentLayer)
+            
+            UIGraphicsBeginImageContextWithOptions(parentLayer.frame.size, parentLayer.isOpaque, 0)
+            parentLayer.render(in: UIGraphicsGetCurrentContext()!)
+            let outputImage = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+            
+            let sourceImage = CIImage(image: outputImage!)
+            let resizeFilter = CIFilter(name:"CILanczosScaleTransform")!
+
+            let targetSize = CGSize(width: width, height: height)
+
+            let imageScale = targetSize.height / (sourceImage?.extent.height)!
+            let aspectRatio = targetSize.width/((sourceImage?.extent.width)! * imageScale)
+            
+            resizeFilter.setValue(sourceImage, forKey: kCIInputImageKey)
+            resizeFilter.setValue(imageScale, forKey: kCIInputScaleKey)
+            resizeFilter.setValue(aspectRatio, forKey: kCIInputAspectRatioKey)
+
+            let ctx = CIContext(options: nil)
+            let outputCGImage = ctx.createCGImage(resizeFilter.outputImage!, from: resizeFilter.outputImage!.extent)!
+            newContext?.draw(outputCGImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            
+            guard let cgImage = newContext?.makeImage() else { return }
+            
+            saveVideoCapturing(cgImage)
+        }
+    }
+    
+    func saveVideoCapturing(_ cgImage: CGImage) {
+        
+        switch captureState {
+        case .start:
+            print("初始化")
+            fileName = UUID().uuidString
+            let videoURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(fileName).mp4")
+            let writer = try! AVAssetWriter(outputURL: videoURL, fileType: AVFileType.mp4)
+                        
+            let input = AVAssetWriterInput(mediaType: .video, outputSettings: nil)
+            
+            input.mediaTimeScale = CMTimeScale(bitPattern: 600)
+            input.expectsMediaDataInRealTime = false
+            
+            let pixelBufferAttributes = [
+                kCVPixelBufferCGImageCompatibilityKey as String: true,
+                kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
+                kCVPixelBufferPixelFormatTypeKey as String: NSNumber(value: kCVPixelFormatType_32BGRA)
+            ]
+            
+            let inputPixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: pixelBufferAttributes)
+            
+            if writer.canAdd(input) {
+                writer.add(input)
+            }
+            
+            writer.startWriting()
+            writer.startSession(atSourceTime: .zero)
+            
+            assetWriter = writer
+            assetWriterInput = input
+            pixelBufferAdaptor = inputPixelBufferAdaptor
+            captureState = .capturing
+            currentTimestamp = timestamp
+            
+        case .capturing:
+            print("錄製中")
+            if assetWriterInput?.isReadyForMoreMediaData == true {
+                let time = CMTime(seconds: timestamp - currentTimestamp, preferredTimescale: CMTimeScale(600))
+                pixelBufferAdaptor?.append(newPixelBufferFrom(cgImage: cgImage)!, withPresentationTime: time)
+            }
+        case .end:
+            print("結束")
+        default:
+            break
+        }
+    }
+    
+    func newPixelBufferFrom(cgImage: CGImage) -> CVPixelBuffer? {
+        
+        let options = [
+            kCVPixelBufferCGImageCompatibilityKey as String: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true]
+
+        var pixelBuffer: CVPixelBuffer?
+
+        let frameWidth = cgImage.width
+        let frameHeight = cgImage.height
+        
+        let status = CVPixelBufferCreate(kCFAllocatorDefault,
+                                         frameWidth, frameHeight,
+                                         kCVPixelFormatType_32BGRA,
+                                         options as CFDictionary,
+                                         &pixelBuffer)
+        
+        assert(status == kCVReturnSuccess && pixelBuffer != nil, "New Pixel Buffer Failed")
+        
+        CVPixelBufferLockBaseAddress(pixelBuffer!, CVPixelBufferLockFlags(rawValue: 0))
+        
+        let pxData = CVPixelBufferGetBaseAddress(pixelBuffer!)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let context = CGContext(data: pxData, width: frameWidth, height: frameHeight, bitsPerComponent: 8, bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer!), space: colorSpace, bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue | CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).rawValue)
+        
+        assert(context != nil, "context is nil")
+        
+        context!.concatenate(CGAffineTransform.identity)
+        context!.draw(cgImage, in: CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height))
+        CVPixelBufferUnlockBaseAddress(pixelBuffer!, CVPixelBufferLockFlags(rawValue: 0))
+
+        return pixelBuffer
+    }
+    
+    func saveToLibrary(url: URL) {
+        PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+            guard status == .authorized else { return }
+            PHPhotoLibrary.shared().performChanges {
+                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
+            } completionHandler: { success, error in
+                if !success {
+                    print("Couldn't save video to photo library: \(error?.localizedDescription)")
+                }
             }
         }
-        
     }
+    
 }
 
 extension MainViewController: PHPickerViewControllerDelegate {
