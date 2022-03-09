@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import PhotosUI
 
 class AppCoordinator: Coordinator<Void> {
     
@@ -24,6 +25,16 @@ class AppCoordinator: Coordinator<Void> {
         next.start()
         
         store(coordinator: next)
+        
+        // PHPhotoLibrary autorization
+        let photos = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        if photos == .notDetermined {
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+                if status == .authorized {
+                    print("Success")
+                }
+            }
+        }
         
     }
     

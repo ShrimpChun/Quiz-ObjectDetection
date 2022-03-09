@@ -24,6 +24,7 @@
 		6C697DF127D5DB2000412D1B /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C697DF027D5DB2000412D1B /* SceneDelegate.swift */; };
 		6C697DF827D5DB2100412D1B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6C697DF727D5DB2100412D1B /* Assets.xcassets */; };
 		6C697DFB27D5DB2100412D1B /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 6C697DF927D5DB2100412D1B /* LaunchScreen.storyboard */; };
+		6C700F9627D8A89200C75955 /* sample.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 6C700F9527D8A89200C75955 /* sample.mp4 */; };
 		6CE9DB1F27D83623000E6B80 /* ODNavigationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9DB1E27D83623000E6B80 /* ODNavigationController.swift */; };
 		6CE9DB2227D836FC000E6B80 /* UIImage+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9DB2127D836FC000E6B80 /* UIImage+Extension.swift */; };
 		6CE9DB2527D86180000E6B80 /* VideoCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9DB2427D86180000E6B80 /* VideoCapture.swift */; };
@@ -50,6 +51,7 @@
 		6C697DF727D5DB2100412D1B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6C697DFA27D5DB2100412D1B /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		6C697DFC27D5DB2100412D1B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		6C700F9527D8A89200C75955 /* sample.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = sample.mp4; sourceTree = "<group>"; };
 		6CE9DB1E27D83623000E6B80 /* ODNavigationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ODNavigationController.swift; sourceTree = "<group>"; };
 		6CE9DB2127D836FC000E6B80 /* UIImage+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Extension.swift"; sourceTree = "<group>"; };
 		6CE9DB2427D86180000E6B80 /* VideoCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCapture.swift; sourceTree = "<group>"; };
@@ -90,6 +92,7 @@
 		6C4B465027D5DBA2003A3B28 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				6C700F9527D8A89200C75955 /* sample.mp4 */,
 				6C4B466127D5DC70003A3B28 /* MobileNetV2_SSDLite.mlmodel */,
 			);
 			path = Resources;
@@ -261,6 +264,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6C697DFB27D5DB2100412D1B /* LaunchScreen.storyboard in Resources */,
+				6C700F9627D8A89200C75955 /* sample.mp4 in Resources */,
 				6C697DF827D5DB2100412D1B /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

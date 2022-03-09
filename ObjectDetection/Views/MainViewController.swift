@@ -134,7 +134,22 @@ private extension MainViewController {
             systemItem: .add,
             primaryAction: .init() {
                 [weak self] _ in
-                self?.openVideoGallery()
+                
+                let actionSheet = UIAlertController(title: "Import video", message: nil, preferredStyle: .actionSheet)
+                
+                let openGallery = UIAlertAction(title: "From Photo Gallery", style: .default) { _ in
+                    self?.openVideoGallery()
+                }
+                
+                let sampleVideo = UIAlertAction(title: "From Sample Video", style: .default) { _ in
+                    self?.openSampleVideo()
+                }
+                
+                actionSheet.addAction(openGallery)
+                actionSheet.addAction(sampleVideo)
+                actionSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+                
+                self?.present(actionSheet, animated: true, completion: nil)
             }
         )
         
@@ -223,6 +238,22 @@ private extension MainViewController {
         }
     }
     
+    func openSampleVideo() {
+        
+        if let filePath = Bundle.main.url(forResource: "sample", withExtension: "mp4") {
+            
+            let fileName = "\(Int(Date().timeIntervalSince1970)).\(filePath.pathExtension)"
+            let newUrl = URL(fileURLWithPath: NSTemporaryDirectory() + fileName)
+            try? FileManager.default.copyItem(at: filePath, to: newUrl)
+            
+            DispatchQueue.main.async {
+                self.viewModel?.input.loadVideo(by: newUrl)
+            }
+            
+        }
+        
+    }
+    
     func openVideoGallery() {
         
         var config = PHPickerConfiguration()
@@ -243,6 +274,10 @@ private extension MainViewController {
     func extractVideoFrame() {
         
         guard let url = videoURL else { return }
+        
+        DispatchQueue.main.async {
+            self.navigationItem.rightBarButtonItem?.isEnabled = false
+        }
         
         let asset = AVAsset(url: url)
         let reader = try! AVAssetReader(asset: asset)
@@ -275,6 +310,7 @@ private extension MainViewController {
             videoCapturing(nil)
             
             viewModel?.input.checkIfNeedsToUpdate()
+            navigationItem.rightBarButtonItem?.isEnabled = true
         }
                         
     }
@@ -389,7 +425,7 @@ private extension MainViewController {
         
         switch videoCapture.captureState {
         case .start:
-            print("Initializing...")
+            // Initializing...
             videoCapture.fileName = UUID().uuidString
             let videoURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(videoCapture.fileName).mp4")
             let writer = try! AVAssetWriter(outputURL: videoURL, fileType: AVFileType.mp4)
@@ -428,7 +464,7 @@ private extension MainViewController {
             videoCapture.endCaptureSeconds = videoCapture.startCaptureSeconds + 10
             
         case .capturing:
-            print("Capturing ... ")
+            // Capturing...
             if assetWriterInput?.isReadyForMoreMediaData == true {
                 let time = CMTime(seconds: videoCapture.timestamp - videoCapture.currentTimestamp, preferredTimescale: CMTimeScale(600))
                 pixelBufferAdaptor?.append(newPixelBufferFrom(cgImage: cgImage!)!, withPresentationTime: time)
