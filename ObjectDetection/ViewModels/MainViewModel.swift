@@ -65,6 +65,7 @@ extension MainViewModel: MainViewModelInput {
         
         VideoClipDataStorageHelper.save(data: models)
         
+        checkIfNeedsToUpdate()
     }
     
     func checkIfNeedsToUpdate() {

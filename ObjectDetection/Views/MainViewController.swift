@@ -240,7 +240,7 @@ private extension MainViewController {
     
     func openSampleVideo() {
         
-        if let filePath = Bundle.main.url(forResource: "sample", withExtension: "mp4") {
+        if let filePath = Bundle.main.url(forResource: "Santa_Claus", withExtension: "mp4") {
             
             let fileName = "\(Int(Date().timeIntervalSince1970)).\(filePath.pathExtension)"
             let newUrl = URL(fileURLWithPath: NSTemporaryDirectory() + fileName)
@@ -282,6 +282,8 @@ private extension MainViewController {
         let asset = AVAsset(url: url)
         let reader = try! AVAssetReader(asset: asset)
 
+        videoCapture = VideoCapture()
+        
         // Keep asset duration
         videoCapture.durationInSeconds = CMTimeGetSeconds(asset.duration);
         
@@ -303,14 +305,14 @@ private extension MainViewController {
         }
         
         if reader.status == .completed {
-            DispatchQueue.main.async {
-                self.messageLabel.text = "Process finished, please check your photo album."
-            }
             videoCapture.captureState = .end
             videoCapturing(nil)
             
-            viewModel?.input.checkIfNeedsToUpdate()
-            navigationItem.rightBarButtonItem?.isEnabled = true
+            DispatchQueue.main.async {
+                self.messageLabel.text = "Process finished, please check your photo album."
+                self.navigationItem.rightBarButtonItem?.isEnabled = true
+            }
+
         }
                         
     }
@@ -373,26 +375,41 @@ private extension MainViewController {
         let parentLayer = CALayer()
         parentLayer.frame = CGRect(x: 0, y: 0, width: frameWidth, height: frameHeight)
         
-        // Search person
+        // Detect person
         var isPersonAvailable = false
-        if predictions.contains(where: { $0.labels.contains(where: { $0.identifier == "person" }) }) == true {
-            isPersonAvailable = true
-        }
         
-        // Draw bounding box
-        for prediction in predictions {
-            
-            let layerRect = prediction.boundingBox.applying(scale).applying(transform)
-            let boxView = BoundingBoxView()
-            boxView.show(frame: layerRect, label: prediction.labels[0].identifier, color: UIColor.yellow)
-            boxView.addToLayer(parentLayer)
-            
+        if predictions.filter({ $0.labels[0].identifier == "person" }).count > 0 {
+            isPersonAvailable = true
         }
         
         // Capture state setting, run once only
         if videoCapture.captureState == .idle && isPersonAvailable == true {
             videoCapture.captureState = .start
             videoCapturing(nil)
+        }
+        
+        // No person has been detected
+        if isPersonAvailable == false {
+            if videoCapture.captureState == .capturing {
+                if videoCapture.timestamp - videoCapture.personNotDetectedSeconds >= 5 {
+                    // No person detected for more than 5 second
+                    videoCapture.captureState = .end
+                    videoCapturing(nil)
+                }
+            }
+        } else {
+            // one or more persons have been detected in 5 second
+            videoCapture.personNotDetectedSeconds = videoCapture.timestamp
+        }
+        
+        // Draw bounding box
+        for prediction in predictions.filter({ $0.labels[0].identifier == "person" }) {
+            
+            let layerRect = prediction.boundingBox.applying(scale).applying(transform)
+            let boxView = BoundingBoxView()
+            boxView.show(frame: layerRect, label: prediction.labels[0].identifier, color: UIColor.yellow)
+            boxView.addToLayer(parentLayer)
+            
         }
         
         UIGraphicsBeginImageContextWithOptions(parentLayer.frame.size, parentLayer.isOpaque, 0)

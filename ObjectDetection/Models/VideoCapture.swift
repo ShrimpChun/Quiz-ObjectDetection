@@ -18,6 +18,7 @@ struct VideoCapture {
     var startCaptureSeconds: Float64 = 0
     var endCaptureSeconds: Float64 = 0
     
+    var personNotDetectedSeconds: Float64 = 0
 }
 
 // MARK: Capture status
