@@ -24,6 +24,14 @@
 		6C697DF127D5DB2000412D1B /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C697DF027D5DB2000412D1B /* SceneDelegate.swift */; };
 		6C697DF827D5DB2100412D1B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6C697DF727D5DB2100412D1B /* Assets.xcassets */; };
 		6C697DFB27D5DB2100412D1B /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 6C697DF927D5DB2100412D1B /* LaunchScreen.storyboard */; };
+		6CE9DB1F27D83623000E6B80 /* ODNavigationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9DB1E27D83623000E6B80 /* ODNavigationController.swift */; };
+		6CE9DB2227D836FC000E6B80 /* UIImage+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9DB2127D836FC000E6B80 /* UIImage+Extension.swift */; };
+		6CE9DB2527D86180000E6B80 /* VideoCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9DB2427D86180000E6B80 /* VideoCapture.swift */; };
+		6CE9DB2727D8825A000E6B80 /* VideoClipCollectionViewCellConfigure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9DB2627D8825A000E6B80 /* VideoClipCollectionViewCellConfigure.swift */; };
+		6CE9DB2927D882E0000E6B80 /* VideoClipCollectionViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9DB2827D882E0000E6B80 /* VideoClipCollectionViewCell.swift */; };
+		6CE9DB2B27D885C9000E6B80 /* UICollectionView+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9DB2A27D885C9000E6B80 /* UICollectionView+Extension.swift */; };
+		6CE9DB2D27D887AE000E6B80 /* VideoClipModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9DB2C27D887AE000E6B80 /* VideoClipModel.swift */; };
+		6CE9DB2F27D8889D000E6B80 /* VideoClipDataStorageHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9DB2E27D8889D000E6B80 /* VideoClipDataStorageHelper.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +50,14 @@
 		6C697DF727D5DB2100412D1B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6C697DFA27D5DB2100412D1B /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		6C697DFC27D5DB2100412D1B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		6CE9DB1E27D83623000E6B80 /* ODNavigationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ODNavigationController.swift; sourceTree = "<group>"; };
+		6CE9DB2127D836FC000E6B80 /* UIImage+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Extension.swift"; sourceTree = "<group>"; };
+		6CE9DB2427D86180000E6B80 /* VideoCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCapture.swift; sourceTree = "<group>"; };
+		6CE9DB2627D8825A000E6B80 /* VideoClipCollectionViewCellConfigure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoClipCollectionViewCellConfigure.swift; sourceTree = "<group>"; };
+		6CE9DB2827D882E0000E6B80 /* VideoClipCollectionViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoClipCollectionViewCell.swift; sourceTree = "<group>"; };
+		6CE9DB2A27D885C9000E6B80 /* UICollectionView+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UICollectionView+Extension.swift"; sourceTree = "<group>"; };
+		6CE9DB2C27D887AE000E6B80 /* VideoClipModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoClipModel.swift; sourceTree = "<group>"; };
+		6CE9DB2E27D8889D000E6B80 /* VideoClipDataStorageHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoClipDataStorageHelper.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,17 +112,13 @@
 			path = ViewModels;
 			sourceTree = "<group>";
 		};
-		6C4B465327D5DBB7003A3B28 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
 		6C4B465427D5DBBD003A3B28 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				6CE9DB2027D836DB000E6B80 /* Extension */,
 				6C4B465527D5DBD0003A3B28 /* PrepareClassInstance.swift */,
+				6CE9DB1E27D83623000E6B80 /* ODNavigationController.swift */,
+				6CE9DB2E27D8889D000E6B80 /* VideoClipDataStorageHelper.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -125,6 +137,8 @@
 		6C4B467327D5E4E4003A3B28 /* Subviews */ = {
 			isa = PBXGroup;
 			children = (
+				6CE9DB2627D8825A000E6B80 /* VideoClipCollectionViewCellConfigure.swift */,
+				6CE9DB2827D882E0000E6B80 /* VideoClipCollectionViewCell.swift */,
 				6C4B467F27D5F429003A3B28 /* BoundingBoxView.swift */,
 			);
 			path = Subviews;
@@ -151,13 +165,31 @@
 			children = (
 				6C4B464F27D5DB7B003A3B28 /* App */,
 				6C4B466227D5DCB6003A3B28 /* Coordinators */,
-				6C4B465327D5DBB7003A3B28 /* Models */,
+				6CE9DB2327D8616D000E6B80 /* Models */,
 				6C4B465027D5DBA2003A3B28 /* Resources */,
 				6C4B465427D5DBBD003A3B28 /* Utilities */,
 				6C4B465227D5DBB0003A3B28 /* ViewModels */,
 				6C4B465127D5DBAA003A3B28 /* Views */,
 			);
 			path = ObjectDetection;
+			sourceTree = "<group>";
+		};
+		6CE9DB2027D836DB000E6B80 /* Extension */ = {
+			isa = PBXGroup;
+			children = (
+				6CE9DB2127D836FC000E6B80 /* UIImage+Extension.swift */,
+				6CE9DB2A27D885C9000E6B80 /* UICollectionView+Extension.swift */,
+			);
+			path = Extension;
+			sourceTree = "<group>";
+		};
+		6CE9DB2327D8616D000E6B80 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				6CE9DB2427D86180000E6B80 /* VideoCapture.swift */,
+				6CE9DB2C27D887AE000E6B80 /* VideoClipModel.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -240,16 +272,24 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6CE9DB2227D836FC000E6B80 /* UIImage+Extension.swift in Sources */,
 				6C4B467027D5DDE0003A3B28 /* MainViewController.swift in Sources */,
+				6CE9DB2727D8825A000E6B80 /* VideoClipCollectionViewCellConfigure.swift in Sources */,
 				6C4B468727D5F8BF003A3B28 /* MobileNetV2_SSDLite.mlmodel in Sources */,
 				6C4B466827D5DCF9003A3B28 /* MainCoordinator.swift in Sources */,
 				6C697DEF27D5DB2000412D1B /* AppDelegate.swift in Sources */,
+				6CE9DB2927D882E0000E6B80 /* VideoClipCollectionViewCell.swift in Sources */,
 				6C4B466627D5DCCC003A3B28 /* Coordinator.swift in Sources */,
 				6C4B468427D5F844003A3B28 /* BoundingBoxView.swift in Sources */,
+				6CE9DB2D27D887AE000E6B80 /* VideoClipModel.swift in Sources */,
+				6CE9DB2F27D8889D000E6B80 /* VideoClipDataStorageHelper.swift in Sources */,
 				6C4B466427D5DCC4003A3B28 /* AppCoordinator.swift in Sources */,
+				6CE9DB2527D86180000E6B80 /* VideoCapture.swift in Sources */,
 				6C4B466E27D5DD64003A3B28 /* CoordinatorPrototype.swift in Sources */,
+				6CE9DB2B27D885C9000E6B80 /* UICollectionView+Extension.swift in Sources */,
 				6C697DF127D5DB2000412D1B /* SceneDelegate.swift in Sources */,
 				6C4B465627D5DBD0003A3B28 /* PrepareClassInstance.swift in Sources */,
+				6CE9DB1F27D83623000E6B80 /* ODNavigationController.swift in Sources */,
 				6C4B467227D5DDF4003A3B28 /* MainViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
